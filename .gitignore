@@ -427,3 +427,29 @@ FodyWeavers.xsd
 *.msix
 *.msm
 *.msp
+
+# -----------------------------------------------------------------------------
+
+# Vivado
+.Xil/
+.cache/
+.hw/
+.ip_user_files/
+.sim/
+.gen/
+*.jou
+*.log
+*.str
+*.pb
+*.wdb
+*.wcfg
+*.bit
+*.ltx
+
+# Vivado generated runs
+*.runs/
+*.gen/
+
+# OS
+.DS_Store
+Thumbs.db
