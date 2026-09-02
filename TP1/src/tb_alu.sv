@@ -11,7 +11,7 @@ module tb_alu;
     // -------------------------------------------------------------------------
     // Parámetros
     // -------------------------------------------------------------------------
-    parameter NB_DATA = 16;
+    parameter NB_DATA = 8;
 
     // -------------------------------------------------------------------------
     // Señales
@@ -90,98 +90,96 @@ module tb_alu;
 
         // ----- ADD -----------------------------------------------------------
         i_operation = ADD;
-        i_operand_a = 16'h0003; i_operand_b = 16'h0005;
-        check(16'h0008, 1'b0, 1'b0, "ADD normal");
+        i_operand_a = 8'h03; i_operand_b = 8'h05;
+        check(8'h08, 1'b0, 1'b0, "ADD normal");
 
-        // Overflow: MAX_POS + 1 → resultado negativo (pos+pos=neg)
-        i_operand_a = 16'h7FFF; i_operand_b = 16'h0001;
-        check(16'h8000, 1'b1, 1'b0, "ADD ovf pos+pos=neg");
+        // Overflow: MAX_POS + 1 -> resultado negativo (pos+pos=neg)
+        i_operand_a = 8'h7F; i_operand_b = 8'h01;
+        check(8'h80, 1'b1, 1'b0, "ADD ovf pos+pos=neg");
 
-        // Overflow: MIN_NEG + MIN_NEG → resultado positivo (neg+neg=pos), además zero
-        i_operand_a = 16'h8000; i_operand_b = 16'h8000;
-        check(16'h0000, 1'b1, 1'b1, "ADD ovf neg+neg=pos+zero");
+        // Overflow: MIN_NEG + MIN_NEG -> resultado positivo (neg+neg=pos), además zero
+        i_operand_a = 8'h80; i_operand_b = 8'h80;
+        check(8'h00, 1'b1, 1'b1, "ADD ovf neg+neg=pos+zero");
 
         // Sin overflow: negativo + positivo
-        i_operand_a = 16'hFFFF; i_operand_b = 16'h0001;  // -1 + 1 = 0
-        check(16'h0000, 1'b0, 1'b1, "ADD no ovf + zero");
+        i_operand_a = 8'hFF; i_operand_b = 8'h01;  // -1 + 1 = 0
+        check(8'h00, 1'b0, 1'b1, "ADD no ovf + zero");
 
         // ----- SUB -----------------------------------------------------------
         i_operation = SUB;
-        i_operand_a = 16'h000A; i_operand_b = 16'h0003;
-        check(16'h0007, 1'b0, 1'b0, "SUB normal");
+        i_operand_a = 8'h0A; i_operand_b = 8'h03;
+        check(8'h07, 1'b0, 1'b0, "SUB normal");
 
-        // Overflow: MIN_NEG - 1 → resultado positivo (neg-pos=pos)
-        i_operand_a = 16'h8000; i_operand_b = 16'h0001;
-        check(16'h7FFF, 1'b1, 1'b0, "SUB ovf neg-pos=pos");
+        // Overflow: MIN_NEG - 1 -> resultado positivo (neg-pos=pos)
+        i_operand_a = 8'h80; i_operand_b = 8'h01;
+        check(8'h7F, 1'b1, 1'b0, "SUB ovf neg-pos=pos");
 
-        // Overflow: MAX_POS - (-1) → resultado negativo (pos-neg=neg)
-        i_operand_a = 16'h7FFF; i_operand_b = 16'hFFFF;  // 0x7FFF - (-1) = 0x8000
-        check(16'h8000, 1'b1, 1'b0, "SUB ovf pos-neg=neg");
+        // Overflow: MAX_POS - (-1) -> resultado negativo (pos-neg=neg)
+        i_operand_a = 8'h7F; i_operand_b = 8'hFF;  // 0x7F - (-1) = 0x80
+        check(8'h80, 1'b1, 1'b0, "SUB ovf pos-neg=neg");
 
         // Zero: mismo operando
-        i_operand_a = 16'h1234; i_operand_b = 16'h1234;
-        check(16'h0000, 1'b0, 1'b1, "SUB zero");
+        i_operand_a = 8'h12; i_operand_b = 8'h12;
+        check(8'h00, 1'b0, 1'b1, "SUB zero");
 
         // ----- AND -----------------------------------------------------------
         i_operation = AND;
-        i_operand_a = 16'hABCD; i_operand_b = 16'hFF00;
-        check(16'hAB00, 1'b0, 1'b0, "AND normal");
+        i_operand_a = 8'hAB; i_operand_b = 8'hF0;
+        check(8'hA0, 1'b0, 1'b0, "AND normal");
 
-        i_operand_a = 16'hAAAA; i_operand_b = 16'h5555;  // ningún bit en común
-        check(16'h0000, 1'b0, 1'b1, "AND zero");
+        i_operand_a = 8'hAA; i_operand_b = 8'h55;  // ningún bit en común
+        check(8'h00, 1'b0, 1'b1, "AND zero");
 
         // ----- OR ------------------------------------------------------------
         i_operation = OR;
-        i_operand_a = 16'h00FF; i_operand_b = 16'hFF00;
-        check(16'hFFFF, 1'b0, 1'b0, "OR normal");
+        i_operand_a = 8'h0F; i_operand_b = 8'hF0;
+        check(8'hFF, 1'b0, 1'b0, "OR normal");
 
-        i_operand_a = 16'h0000; i_operand_b = 16'h0000;
-        check(16'h0000, 1'b0, 1'b1, "OR zero");
+        i_operand_a = 8'h00; i_operand_b = 8'h00;
+        check(8'h00, 1'b0, 1'b1, "OR zero");
 
         // ----- XOR -----------------------------------------------------------
         i_operation = XOR;
-        i_operand_a = 16'hFFFF; i_operand_b = 16'hFFFF;
-        check(16'h0000, 1'b0, 1'b1, "XOR zero");
+        i_operand_a = 8'hFF; i_operand_b = 8'hFF;
+        check(8'h00, 1'b0, 1'b1, "XOR zero");
 
-        i_operand_a = 16'hA5A5; i_operand_b = 16'h5A5A;
-        check(16'hFFFF, 1'b0, 1'b0, "XOR normal");
+        i_operand_a = 8'hA5; i_operand_b = 8'h5A;
+        check(8'hFF, 1'b0, 1'b0, "XOR normal");
 
         // ----- NOR -----------------------------------------------------------
         i_operation = NOR;
-        i_operand_a = 16'h0000; i_operand_b = 16'h0000;
-        check(16'hFFFF, 1'b0, 1'b0, "NOR all zero in");
+        i_operand_a = 8'h00; i_operand_b = 8'h00;
+        check(8'hFF, 1'b0, 1'b0, "NOR all zero in");
 
-        i_operand_a = 16'hFFFF; i_operand_b = 16'h0000;
-        check(16'h0000, 1'b0, 1'b1, "NOR zero out");
+        i_operand_a = 8'hFF; i_operand_b = 8'h00;
+        check(8'h00, 1'b0, 1'b1, "NOR zero out");
 
         // ----- SRL -----------------------------------------------------------
         i_operation = SRL;
-        // 0x8000 >> 1 = 0x4000 (no rellena con signo)
-        i_operand_a = 16'h8000; i_operand_b = 16'h0001;
-        check(16'h4000, 1'b0, 1'b0, "SRL 0x8000>>1");
+        i_operand_a = 8'h80; i_operand_b = 8'h01;
+        check(8'h40, 1'b0, 1'b0, "SRL 0x80>>1");
 
-        i_operand_a = 16'hFFFF; i_operand_b = 16'h0008;
-        check(16'h00FF, 1'b0, 1'b0, "SRL 0xFFFF>>8");
+        i_operand_a = 8'hFF; i_operand_b = 8'h08;
+        check(8'h00, 1'b0, 1'b1, "SRL 0xFF>>8");
 
-        i_operand_a = 16'h0001; i_operand_b = 16'h0001;
-        check(16'h0000, 1'b0, 1'b1, "SRL zero");
+        i_operand_a = 8'h01; i_operand_b = 8'h01;
+        check(8'h00, 1'b0, 1'b1, "SRL zero");
 
         // ----- SRA -----------------------------------------------------------
         i_operation = SRA;
-        // 0x8000 >>> 1 = 0xC000 (rellena con el bit de signo)
-        i_operand_a = 16'h8000; i_operand_b = 16'h0001;
-        check(16'hC000, 1'b0, 1'b0, "SRA 0x8000>>>1");
+        i_operand_a = 8'h80; i_operand_b = 8'h01;
+        check(8'hC0, 1'b0, 1'b0, "SRA 0x80>>>1");
 
-        i_operand_a = 16'hFFFF; i_operand_b = 16'h0004;  // -1 >>> 4 = -1
-        check(16'hFFFF, 1'b0, 1'b0, "SRA -1>>>4");
+        i_operand_a = 8'hFF; i_operand_b = 8'h04;  // -1 >>> 4 = -1
+        check(8'hFF, 1'b0, 1'b0, "SRA -1>>>4");
 
-        i_operand_a = 16'h7FFF; i_operand_b = 16'h000F;  // MAX_POS >>> 15 = 0
-        check(16'h0000, 1'b0, 1'b1, "SRA zero");
+        i_operand_a = 8'h7F; i_operand_b = 8'h0F;  // MAX_POS >>> 15 = 0
+        check(8'h00, 1'b0, 1'b1, "SRA zero");
 
         // ----- Default -------------------------------------------------------
         i_operation = 6'b000000; // no asignado
-        i_operand_a = 16'hDEAD; i_operand_b = 16'hBEEF;
-        check(16'h0000, 1'b0, 1'b1, "Default op");
+        i_operand_a = 8'hDE; i_operand_b = 8'hEF;
+        check(8'h00, 1'b0, 1'b1, "Default op");
 
         // ----- Resumen -------------------------------------------------------
         $display("=========================================");

@@ -56,11 +56,11 @@ module alu #(
                 o_overflow = 1'b0;
             end
             SRA: begin
-                o_result   = $signed(i_operand_a) >>> i_operand_b[4:0];  // Arithmetic right shift
+                o_result   = $signed(i_operand_a) >>> i_operand_b[$clog2(NB_DATA):0];  // Arithmetic right shift
                 o_overflow = 1'b0;
             end
             SRL: begin
-                o_result   = i_operand_a >> i_operand_b[4:0];            // Logical right shift
+                o_result   = i_operand_a >> i_operand_b[$clog2(NB_DATA):0];            // Logical right shift
                 o_overflow = 1'b0;
             end
             NOR: begin
