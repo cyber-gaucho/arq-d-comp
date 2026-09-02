@@ -95,7 +95,7 @@ module tb_top;
         repeat(4) @(posedge CLK100MHZ);
         check_led_bits(16'b01000000_00000000, "LED zero flag");
 
-        $display("--- Test 4: reset asíncrono ---");
+        $display("--- Test 4: reset síncrono ---");
         load_sw_btn(16'h00AA, 2'd0);
         load_sw_btn(16'h0055, 2'd1);
         load_sw_btn({10'b0, ADD}, 2'd2);

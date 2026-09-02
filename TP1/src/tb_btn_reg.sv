@@ -67,7 +67,7 @@ module tb_btn_reg;
 
         rst = 1;
         @(posedge clk); #1;
-        check({WIDTH{1'b0}}, "async reset clears data");
+        check({WIDTH{1'b0}}, "reset clears data");
 
         $display("=========================================");
         $display("Resultado: %0d PASS  /  %0d FAIL", pass_cnt, fail_cnt);

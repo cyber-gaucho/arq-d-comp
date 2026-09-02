@@ -17,7 +17,7 @@ TP1/
 │   └── tb_btn_reg.sv # Testbench del módulo btn_reg
 ├── constr/
 │   └── Basys3_Master.xdc  # Constraints de pines para la Basys3
-└── test.sh           # Corre los test con iverilog
+├── test.sh           # Corre los test con iverilog
 └── README.md         # Documentación del proyecto
 ```
 
@@ -32,8 +32,8 @@ TP1/
 | `AND`     | `100100`       | AND bit a bit: `A & B`                 |
 | `OR`      | `100101`       | OR bit a bit: `A \| B`                 |
 | `XOR`     | `100110`       | XOR bit a bit: `A ^ B`                 |
-| `SRA`     | `000011`       | Desplazamiento aritmético derecho: `A >>> B[4:0]` |
-| `SRL`     | `000010`       | Desplazamiento lógico derecho: `A >> B[4:0]`      |
+| `SRA`     | `000011`       | Desplazamiento aritmético derecho: `A >>> B[$clog2(NB_DATA):0]` |
+| `SRL`     | `000010`       | Desplazamiento lógico derecho: `A >> B[$clog2(NB_DATA):0]`      |
 | `NOR`     | `100111`       | NOR bit a bit: `~(A \| B)`             |
 
 ---
