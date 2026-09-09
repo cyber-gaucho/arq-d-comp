@@ -1,12 +1,32 @@
+<p align="center">
+  <img src="./assets/Isologotipo_FCEFyN_y_UNC-original_Sin_fondo-Con_bajada.png" alt="Isologotipo de la Facultad de Ciencias Exactas, Físicas y Naturales y la Universidad Nacional de Córdoba" width="70%" />
+</p>
+
 # TP1 — Implementación de una ALU de 8 bits sobre Basys3
 
-| | |
-|---|---|
+|              |                              |
+|--------------|------------------------------|
 | **Materia:** | Arquitectura de Computadoras |
-| **Carrera:** | Ingeniería en Computación |
-| **Alumnos:** | García, Lautaro Misael |
-|              | Renaudo Gaggioli, Valentino |
-| **Fecha:** |-|
+| **Carrera:** | Ingeniería en Computación    |
+| **Alumnos:** | García, Lautaro Misael       |
+|              | Renaudo Gaggioli, Valentino  |
+| **Fecha:**   | Septiembre, 2026             |
+
+---
+
+## Índice
+
+1. [Objetivos](#1-objetivos)
+2. [Descripción general del sistema](#2-descripción-general-del-sistema)
+3. [Arquitectura de la implementación](#3-arquitectura-de-la-implementación)
+4. [Operaciones implementadas](#4-operaciones-implementadas)
+5. [Flags](#5-flags)
+6. [Integración mediante `top`](#6-integración-mediante-top)
+7. [Interfaz física con la Basys3](#7-interfaz-física-con-la-basys3)
+8. [Mapeo de pines](#8-mapeo-de-pines)
+9. [Verificación mediante simulación](#9-verificación-mediante-simulación)
+10. [Decisiones de diseño](#10-decisiones-de-diseño)
+11. [Conclusiones](#11-conclusiones)
 
 ---
 
@@ -48,10 +68,6 @@ La secuencia normal de utilización es:
 
 El botón `btnR` realiza un reset síncrono de los registros.
 
-**Figura 1 — Diagrama general del sistema**
-
-*[Insertar un diagrama de bloques con: switches → registros A/B/OP → ALU → LEDs. Indicar también los botones `btnU`, `btnD`, `btnC` y `btnR`.]*
-
 ---
 
 ## 3. Arquitectura de la implementación
@@ -86,9 +102,11 @@ De esta forma, un pulsador mantenido presionado no provoca múltiples capturas. 
 
 El parámetro `WIDTH` permite reutilizar el módulo tanto para los operandos de 8 bits como para el código de operación de 6 bits.
 
-**Figura 2 — Módulo `btn_reg`**
+**Figura 1 — Módulo `btn_reg`**
 
-*[Insertar el esquemático RTL generado por Vivado del módulo `btn_reg` o un diagrama equivalente.]*
+<p align="center">
+  <img src="./assets/RTL-schematic-btn_reg.png" alt="Esquemático RTL de `top`" width="70%" />
+</p>
 
 ---
 
@@ -105,6 +123,12 @@ Sus salidas son:
 La lógica de selección de operaciones se implementa mediante una estructura `case`, por lo que la ALU funciona como lógica combinacional.
 
 El ancho de datos se define mediante el parámetro `NB_DATA`, cuyo valor utilizado en el `top` es 8.
+
+**Figura 2 — Módulo `alu`**
+
+<p align="center">
+  <img src="./assets/RTL-schematic-alu.png" alt="Esquemático RTL de `alu`" width="70%" />
+</p>
 
 ---
 
@@ -212,9 +236,9 @@ La flag `Overflow` se utiliza exclusivamente en las operaciones `ADD` y `SUB`.
 
 Para una ALU de 8 bits con representación en complemento a dos, el rango de valores con signo es:
 
-```text
--128 ≤ x ≤ 127
-```
+$$
+-128 \leq x \leq 127
+$$
 
 En `ADD`, se detecta overflow cuando:
 
@@ -288,7 +312,9 @@ Por tratarse de una ALU combinacional, el resultado se actualiza automáticament
 
 **Figura 3 — Esquemático RTL de `top`**
 
-*[Insertar el esquemático RTL generado por Vivado del módulo `top`.]*
+<p align="center">
+  <img src="./assets/RTL-schematic-top.png" alt="Esquemático RTL de `top`" width="70%" />
+</p>
 
 ---
 
@@ -401,7 +427,9 @@ El archivo contiene **23 casos de prueba efectivos**.
 
 **Figura 4 — Resultado de la simulación de `tb_alu`**
 
-*[Insertar captura de la consola mostrando los casos `PASS` y el resumen final de la simulación.]*
+<p align="center">
+  <img src="./assets/tb-alu.png" alt="Captura de la consola mostrando los casos `PASS` y el resumen final de la simulación." width="70%" />
+</p>
 
 ### 9.2. Testbench de `btn_reg`
 
@@ -415,7 +443,9 @@ El archivo contiene **23 casos de prueba efectivos**.
 
 **Figura 5 — Resultado de la simulación de `tb_btn_reg`**
 
-*[Insertar captura de la consola mostrando los casos `PASS` y el resumen final.]*
+<p align="center">
+  <img src="./assets/tb-btn.png" alt="Captura de la consola mostrando los casos `PASS` y el resumen final de la simulación." width="70%" />
+</p>
 
 ### 9.3. Testbench de integración
 
@@ -434,157 +464,15 @@ Los casos implementados son:
 
 **Figura 6 — Resultado de la simulación de `tb_top`**
 
-*[Insertar captura de la consola mostrando las seis pruebas y el resumen final.]*
+<p align="center">
+  <img src="./assets/tb-top.png" alt="Captura de la consola mostrando los casos `PASS` y el resumen final de la simulación." width="70%" />
+</p>
 
 ---
 
-## 10. Script de automatización de pruebas
+## 10. Decisiones de diseño
 
-El archivo `test.sh` automatiza la compilación y ejecución de los tres testbenches.
-
-Por defecto:
-
-```bash
-./test.sh
-```
-
-ejecuta:
-
-```text
-tb_alu
-tb_btn_reg
-tb_top
-```
-
-También es posible ejecutar individualmente:
-
-```bash
-./test.sh alu
-./test.sh btn
-./test.sh top
-```
-
-o ejecutar explícitamente todas las pruebas:
-
-```bash
-./test.sh all
-```
-
-El script utiliza:
-
-```text
-iverilog -g2012 -Wall
-```
-
-para compilar los módulos y posteriormente `vvp` para ejecutar las simulaciones.
-
-Además, `set -e` hace que el script finalice ante un error de compilación o ejecución.
-
----
-
-## 11. Síntesis e implementación en Vivado
-
-El proyecto está preparado para ser sintetizado en Vivado utilizando como dispositivo objetivo el correspondiente a la Basys3:
-
-```text
-xc7a35tcpg236-1
-```
-
-El flujo de implementación previsto es:
-
-1. Crear el proyecto de Vivado.
-2. Seleccionar el dispositivo de la Basys3.
-3. Agregar `alu.sv`.
-4. Agregar `btn_reg.sv`.
-5. Agregar `top.sv`.
-6. Agregar `Basys3_Master.xdc`.
-7. Establecer `top` como módulo superior.
-8. Ejecutar síntesis.
-9. Ejecutar implementación.
-10. Generar el bitstream.
-11. Programar la FPGA.
-
-**Figura 7 — Proyecto en Vivado**
-
-*[Insertar captura del proyecto con los módulos fuente y el archivo `.xdc`.]*
-
-**Figura 8 — Síntesis**
-
-*[Insertar captura del resultado de síntesis indicando que el proceso finalizó correctamente.]*
-
-**Figura 9 — Implementación**
-
-*[Insertar captura del resultado de implementación y, si se desea, del resumen de utilización de recursos.]*
-
----
-
-## 12. Prueba sobre hardware
-
-La prueba sobre hardware consiste en programar la Basys3 con el bitstream generado por Vivado y repetir las operaciones verificadas previamente mediante simulación.
-
-Un ejemplo de prueba es:
-
-### Caso: suma normal
-
-```text
-A = 3
-B = 5
-OP = ADD
-```
-
-Resultado esperado:
-
-```text
-Resultado = 8
-Zero = 0
-Overflow = 0
-```
-
-Otro caso representativo es:
-
-### Caso: overflow
-
-```text
-A = 0x7F
-B = 0x01
-OP = ADD
-```
-
-Resultado esperado:
-
-```text
-Resultado = 0x80
-Zero = 0
-Overflow = 1
-```
-
-Finalmente:
-
-### Caso: resultado cero
-
-```text
-A = 5
-B = 5
-OP = SUB
-```
-
-Resultado esperado:
-
-```text
-Resultado = 0x00
-Zero = 1
-Overflow = 0
-```
-
-**Figura 10 — Prueba física sobre la Basys3**
-
-*[Insertar fotografía de la Basys3 funcionando. Conviene mostrar claramente la posición de los switches, el pulsador utilizado y los LEDs encendidos.]*
-
----
-
-## 13. Decisiones de diseño
-
-### 13.1. Parametrización del ancho de datos
+### 10.1. Parametrización del ancho de datos
 
 La ALU y el registro `btn_reg` utilizan parámetros para definir su ancho.
 
@@ -598,7 +486,7 @@ por lo que los operandos y el resultado son de 8 bits.
 
 Esta parametrización permite reutilizar los módulos para otros anchos de datos sin modificar la estructura general.
 
-### 13.2. Captura por flanco de botón
+### 10.2. Captura por flanco de botón
 
 En lugar de utilizar directamente el pulsador como reloj, el diseño utiliza el reloj de 100 MHz de la FPGA y detecta el flanco ascendente del botón.
 
@@ -606,23 +494,23 @@ Esta decisión permite mantener un único reloj de sistema y hace que la captura
 
 El registro `r_btn_prev` almacena el estado anterior del botón para realizar esta detección.
 
-### 13.3. Reset
+### 10.3. Reset
 
 El reset se implementa de forma síncrona. Cuando `btnR` está activo durante un flanco del reloj, los registros de operandos y operación se limpian.
 
 La ALU es combinacional, por lo que al quedar los registros en cero, el resultado correspondiente también se actualiza.
 
-### 13.4. Tratamiento del overflow
+### 10.4. Tratamiento del overflow
 
 Se eligió detectar overflow signed en complemento a dos para `ADD` y `SUB`.
 
 No se implementó saturación. Por lo tanto, el resultado mantiene los bits correspondientes a la operación de 8 bits y la flag `Overflow` informa que el valor matemático excedió el rango representable.
 
-### 13.5. Ausencia de Carry
+### 10.5. Ausencia de Carry
 
 No se agregó una flag `Carry`, dado que las flags implementadas por este diseño son `Zero` y `Overflow`.
 
-### 13.6. Código de operación
+### 10.6. Código de operación
 
 Los ocho códigos de operación se definen mediante `localparam`, evitando utilizar directamente valores numéricos dentro de cada decisión del `case`.
 
@@ -630,42 +518,7 @@ Esto mejora la legibilidad y permite relacionar cada operación con su código d
 
 ---
 
-## 14. Estructura del proyecto
-
-La organización final del proyecto es:
-
-```text
-TP1/
-├── src/
-│   ├── alu.sv
-│   ├── btn_reg.sv
-│   ├── top.sv
-│   ├── tb_alu.sv
-│   ├── tb_btn_reg.sv
-│   └── tb_top.sv
-├── constr/
-│   └── Basys3_Master.xdc
-├── test.sh
-├── README.md
-└── informe.md
-```
-
-Cada archivo cumple una función específica:
-
-- `alu.sv`: implementación de la ALU.
-- `btn_reg.sv`: registro parametrizable con captura por flanco del botón.
-- `top.sv`: integración de todos los bloques.
-- `tb_alu.sv`: verificación de la ALU.
-- `tb_btn_reg.sv`: verificación del registro de captura.
-- `tb_top.sv`: verificación de integración.
-- `Basys3_Master.xdc`: asignación de señales a pines físicos.
-- `test.sh`: automatización de las simulaciones.
-- `README.md`: documentación técnica del proyecto.
-- `informe.md`: informe correspondiente al trabajo práctico.
-
----
-
-## 15. Conclusiones
+## 11. Conclusiones
 
 La implementación permitió desarrollar una ALU parametrizable utilizando SystemVerilog y trasladar su funcionamiento a una FPGA Digilent Basys3.
 
