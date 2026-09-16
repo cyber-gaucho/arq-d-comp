@@ -1,13 +1,13 @@
 module uart_rx #(
     //PARAMETERS
-    NB_DATA = 8,
+    parameter integer NB_DATA = 8,
     // PARITY  = 0,
-    NB_STOP = 1 // 8N1 by default
+    parameter integer NB_STOP = 1 // 8N1 by default
 )
 (
     //OUTPUTS
     output wire                     o_rx_done,
-    output reg  [NB_DATA-1:0]       o_d_out,
+    output wire  [NB_DATA-1:0]      o_d_out,
 
     //INPUTS
     input wire                      i_rx,       // serial input
@@ -16,22 +16,22 @@ module uart_rx #(
     // lleva reset?
 );
 
-    parameter    s1_idle        = 4'b0001';
-    parameter    s2_start       = 4'b0010';
-    parameter    s3_data        = 4'b0100';
-    parameter    s4_stop        = 4'b1000';
+    parameter    s1_idle        = 4'b0001;
+    parameter    s2_start       = 4'b0010;
+    parameter    s3_data        = 4'b0100;
+    parameter    s4_stop        = 4'b1000;
 
-    reg [3:0]    state          = s1_idle ;
-    reg [3:0]    next_state     = s1_idle ;
-    reg [3:0]    tick_counter   = 0       ;
-    reg [3:0]    data_counter             ;
-    reg          rx_done        = 0       ;
-    reg [NB_DATA-1:0] data                ;
-    reg          reset          = 1'b0'   ;     // internal reset signal
+    reg [3:0]    state          = s1_idle;
+    reg [3:0]    next_state     = s1_idle;
+    reg [3:0]    tick_counter   = 0      ;
+    reg [3:0]    data_counter            ;
+    reg          rx_done        = 0      ;
+    reg [NB_DATA-1:0] data               ;
+    reg          reset          = 1'b0   ;     // internal reset signal
 
 
     always @(posedge i_clock)                   // Memory
-        if (reset)  state <= ;
+        if (reset)  state <= s1_idle   ;
         else        state <= next_state;
 
 
@@ -40,6 +40,9 @@ module uart_rx #(
 
     always @(*)                                 // Next-state logic
     begin : Next_state_logic
+
+        next_state = state;
+
         case (state)
             s1_idle: begin
                 // algo
@@ -70,8 +73,7 @@ module uart_rx #(
                     if (tick_counter == 15)
                     begin
                         tick_counter = 0;
-                        data = {i_rx, data[7:1]};   // cpncatena el dato al final
-                        data << 1;                  // y desplaza el registro
+                        data = {i_rx, data[NB_DATA-1:1]};   // cpncatena el dato al final
                         if (data_counter == NB_DATA-1)
                         begin
                             // acá podría ir el assign
@@ -88,7 +90,7 @@ module uart_rx #(
                 // algo
                 if (i_s_tick == 1)
                 begin
-                    if (tick_counter == NB_STOP-1)
+                    if (tick_counter == (16*NB_STOP)-1)
                     begin
                         rx_done = 1;                // ver dónde se apaga esta señal
                         next_state = s1_idle;
@@ -98,7 +100,7 @@ module uart_rx #(
                 end
             end
             default: begin
-                
+                next_state = s1_idle;
             end
         endcase
     end
