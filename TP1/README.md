@@ -9,16 +9,18 @@ Implementación de una ALU (Unidad Aritmético-Lógica) de 8 bits sobre la placa
 ```
 TP1/
 ├── src/
-│   ├── alu.sv        # Módulo ALU: operaciones + flags o_overflow y o_zero
+│   ├── alu.sv        # Módulo ALU: operaciones y flags
 │   ├── btn_reg.sv    # Registro de captura por flanco de botón
-│   ├── top.sv        # Top-level estructural: conexiones, reset y LEDs
-│   ├── tb_alu.sv     # Testbench del módulo ALU (23 casos)
-│   ├── tb_top.sv     # Testbench de integración del top
-│   └── tb_btn_reg.sv # Testbench del módulo btn_reg
+│   ├── top.sv        # Integración del sistema y conexión con la Basys3
+│   ├── tb_alu.sv     # Testbench de la ALU
+│   ├── tb_top.sv     # Testbench de integración
+│   └── tb_btn_reg.sv # Testbench de btn_reg
 ├── constr/
-│   └── Basys3_Master.xdc  # Constraints de pines para la Basys3
-├── test.sh           # Corre los test con iverilog
-└── README.md         # Documentación del proyecto
+│   └── Basys3_Master.xdc # Constraints de pines para la Basys3
+├── assets/           # Imágenes utilizadas en el informe
+├── informe.md        # Informe completo del trabajo práctico
+├── test.sh           # Script de ejecución de los testbench
+└── README.md         # Documentación resumida del proyecto
 ```
 
 ---
