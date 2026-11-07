@@ -1,10 +1,13 @@
-# Convenciones de código — Verilog/SystemVerilog
+# Convenciones de código — Verilog-2001 (RTL) y Testbenches
 
-Este documento define las convenciones de estilo utilizadas en el repositorio para el desarrollo de RTL en Verilog/SystemVerilog.
+Este documento define las convenciones de estilo utilizadas en el repositorio para el desarrollo de RTL en **Verilog-2001** (IEEE 1364-2001).
 
 El objetivo es mantener el código consistente, legible y fácil de mantener por todos los integrantes del proyecto y por herramientas o agentes que analicen o modifiquen el código.
 
-Estas convenciones son de **estilo** y no modifican las reglas sintácticas o semánticas definidas por Verilog/SystemVerilog.
+* **Código RTL sintetizable:** debe escribirse exclusivamente en **Verilog-2001** y utilizar la extensión `.v`.
+* **Testbenches:** pueden utilizar SystemVerilog (`.sv`) cuando esté técnicamente justificado, pero se debe priorizar Verilog-2001 (`.v`) para mantener la compatibilidad con las herramientas y criterios de la cátedra.
+
+Estas convenciones son de **estilo** y no modifican las reglas sintácticas o semánticas definidas por el estándar.
 
 ---
 
@@ -12,40 +15,42 @@ Estas convenciones son de **estilo** y no modifican las reglas sintácticas o se
 
 Utilizar `lower_snake_case` para nombres de módulos, señales, variables, funciones y archivos.
 
-```systemverilog
+```verilog
 module uart_rx;
 
-logic [7:0] rx_data;
-logic       rx_valid;
-logic       rx_busy;
+wire [7:0] rx_data;
+wire       rx_valid;
+reg        rx_busy;
 ```
 
 Evitar mezclar estilos de nombres:
 
-```systemverilog
+```verilog
 // Evitar
 module UART_RX;
-logic [7:0] RxData;
-logic       rxValid;
+wire [7:0] RxData;
+reg        rxValid;
 ```
 
 ### Archivos
 
-Los archivos SystemVerilog deben utilizar:
+Los archivos de módulos sintetizables (RTL) deben utilizar la extensión `.v`:
 
 ```text
-lower_snake_case.sv
+lower_snake_case.v
 ```
 
 Ejemplos:
 
 ```text
-uart_rx.sv
-uart_tx.sv
-baud_generator.sv
-alu.sv
-register_file.sv
+uart_rx.v
+uart_tx.v
+uart_brg.v
+alu.v
+register_file.v
 ```
+
+Los archivos de testbench utilizan el prefijo `tb_` (`tb_uart_tx.v` o `tb_uart_tx.sv` cuando se emplee SystemVerilog en simulación).
 
 ---
 
@@ -53,13 +58,13 @@ register_file.sv
 
 Los módulos utilizan `lower_snake_case`.
 
-```systemverilog
+```verilog
 module uart_rx (...);
 ```
 
 Las instancias utilizan preferentemente el prefijo `u_`:
 
-```systemverilog
+```verilog
 uart_rx u_uart_rx (
     .clk  (clk),
     .rst  (rst),
@@ -76,24 +81,24 @@ El prefijo `u_` permite distinguir visualmente una instancia de una señal o var
 
 Utilizar `lower_snake_case`.
 
-```systemverilog
-logic       rx_valid;
-logic [7:0] rx_data;
-logic [3:0] bit_counter;
+```verilog
+wire       rx_valid;
+wire [7:0] rx_data;
+reg  [3:0] bit_counter;
 ```
 
 Evitar abreviaturas innecesarias. Las señales deben tener nombres que indiquen claramente su función.
 
 Preferir:
 
-```systemverilog
-logic data_valid;
+```verilog
+wire data_valid;
 ```
 
 sobre:
 
-```systemverilog
-logic dv;
+```verilog
+wire dv;
 ```
 
 cuando la abreviatura no sea una convención evidente del diseño.
@@ -102,48 +107,62 @@ cuando la abreviatura no sea una convención evidente del diseño.
 
 ## 4. Parámetros
 
-Los parámetros constantes utilizan `UPPER_SNAKE_CASE`.
+Los parámetros constantes utilizan `UPPER_SNAKE_CASE`. En Verilog-2001 no se especifica el tipo `int` ni `int unsigned` en la declaración de `parameter` o `localparam`.
 
-```systemverilog
-parameter int DATA_WIDTH = 8;
-parameter int BAUD_RATE  = 115200;
+```verilog
+parameter DATA_WIDTH = 8;
+parameter BAUD_RATE  = 115200;
 ```
 
 Ejemplo:
 
-```systemverilog
+```verilog
 module uart_rx #(
-    parameter int DATA_WIDTH = 8
+    parameter DATA_WIDTH = 8
 ) (
     ...
 );
 ```
 
+Utilizar `localparam` para constantes internas que no deban sobreescribirse al instanciar el módulo.
+
 ---
 
-## 5. Tipos de señales
+## 5. Tipos de señales y equivalencias SystemVerilog → Verilog-2001
 
-En SystemVerilog utilizar preferentemente `logic` para las señales RTL.
+En Verilog-2001 no existe el tipo `logic`. Se debe distinguir explícitamente entre redes (`wire`) y variables procedurales (`reg`):
 
-```systemverilog
-logic       rx_valid;
-logic [7:0] rx_data;
+* **`wire`:** para puertos de entrada (`input wire`), señales conducidas por asignaciones continuas (`assign`) o conectadas a salidas de submódulos.
+* **`reg`:** para señales asignadas dentro de bloques procedurales (`always @(posedge clk)` o `always @(*)`). Nota: un `reg` asignado en un bloque combinacional `always @(*)` sintetiza lógica combinacional, no un registro físico.
+
+```verilog
+wire       rx_valid;
+reg  [7:0] rx_data_q;
+reg  [7:0] rx_data_d;
 ```
 
-No utilizar `reg` cuando `logic` sea suficiente.
+### Equivalencias entre SystemVerilog y Verilog-2001
 
-`wire` puede utilizarse cuando se quiera expresar explícitamente una conexión de tipo net o cuando sea requerido por una interfaz específica.
+| Construcción SystemVerilog (no usar en RTL) | Equivalente en Verilog-2001 (usar en RTL) |
+| ------------------------------------------- | ----------------------------------------- |
+| `logic`                                     | `wire` (asignación continua / entradas) o `reg` (bloques `always`) |
+| `parameter int X = 8;` / `localparam int`   | `parameter X = 8;` / `localparam`         |
+| `always_ff @(posedge clk)`                  | `always @(posedge clk)`                   |
+| `always_comb`                               | `always @(*)`                             |
+| `typedef enum logic [N-1:0] { ... } state_t;` | `localparam [N-1:0] StIdle = ...;` + `reg [N-1:0] state_q, state_d;` |
+| `'0` / `'1` (literales de relleno sin ancho) | `{WIDTH{1'b0}}` / `{WIDTH{1'b1}}` o literal con ancho explícito (`4'd0`) |
+| `WIDTH'(expr)` (cast explícito de ancho)    | Literal dimensionado (`4'd15`) o expresión del ancho correspondiente |
 
 ---
 
 ## 6. Lógica secuencial
 
-Utilizar `always_ff` para lógica secuencial asociada a un reloj.
+Utilizar `always @(posedge clk)` para lógica secuencial asociada a un reloj.
 
-```systemverilog
-always_ff @(posedge clk) begin
+```verilog
+always @(posedge clk) begin
     if (rst) begin
-        counter_q <= '0;
+        counter_q <= {WIDTH{1'b0}};
     end else begin
         counter_q <= counter_d;
     end
@@ -156,10 +175,10 @@ Utilizar asignaciones no bloqueantes (`<=`) dentro de bloques secuenciales.
 
 ## 7. Lógica combinacional
 
-Utilizar `always_comb` para lógica combinacional.
+Utilizar `always @(*)` para lógica combinacional procedural, o `assign` para expresiones simples.
 
-```systemverilog
-always_comb begin
+```verilog
+always @(*) begin
     next_state = state_q;
 
     case (state_q)
@@ -170,7 +189,7 @@ end
 
 Utilizar asignaciones bloqueantes (`=`) dentro de bloques combinacionales.
 
-Evitar inferir almacenamiento accidentalmente. Las señales asignadas dentro de un bloque combinacional deben recibir un valor para todas las condiciones posibles.
+Evitar inferir almacenamiento (*latches*) accidentalmente. Las señales asignadas dentro de un bloque combinacional deben recibir un valor por defecto o para todas las condiciones posibles.
 
 ---
 
@@ -183,9 +202,9 @@ Cuando una señal representa el estado de un registro y su próximo valor, utili
 
 Ejemplo:
 
-```systemverilog
-logic [7:0] counter_q;
-logic [7:0] counter_d;
+```verilog
+reg [7:0] counter_q;
+reg [7:0] counter_d;
 ```
 
 La estructura habitual es:
@@ -207,18 +226,18 @@ registro
 
 Ejemplo:
 
-```systemverilog
-always_comb begin
+```verilog
+always @(*) begin
     counter_d = counter_q;
 
     if (enable) begin
-        counter_d = counter_q + 1;
+        counter_d = counter_q + 1'b1;
     end
 end
 
-always_ff @(posedge clk) begin
+always @(posedge clk) begin
     if (rst) begin
-        counter_q <= '0;
+        counter_q <= 8'd0;
     end else begin
         counter_q <= counter_d;
     end
@@ -231,30 +250,28 @@ Esta convención es especialmente recomendable para máquinas de estados y unida
 
 ## 9. Máquinas de estados (FSM)
 
-Utilizar `typedef enum` para representar los estados cuando sea apropiado.
+En Verilog-2001, definir la codificación de estados mediante `localparam` con ancho explícito y declarar los registros de estado actual y próximo con `reg`.
 
 Los nombres de estados utilizan `StCamelCase`.
 
-```systemverilog
-typedef enum logic [1:0] {
-    StIdle,
-    StStart,
-    StData,
-    StStop
-} state_t;
+```verilog
+localparam [3:0] StIdle  = 4'b0001;
+localparam [3:0] StStart = 4'b0010;
+localparam [3:0] StData  = 4'b0100;
+localparam [3:0] StStop  = 4'b1000;
 ```
 
-El estado registrado utiliza la convención `_q`:
+El estado registrado utiliza la convención `_q` y el próximo estado `_d`:
 
-```systemverilog
-state_t state_q;
-state_t state_d;
+```verilog
+reg [3:0] state_q;
+reg [3:0] state_d;
 ```
 
 Ejemplo:
 
-```systemverilog
-always_comb begin
+```verilog
+always @(*) begin
     state_d = state_q;
 
     case (state_q)
@@ -285,14 +302,14 @@ end
 
 ## 10. Reset y señales activas en bajo
 
-El reset debe denominarse `rst` cuando no sea necesario distinguir su polaridad mediante el nombre.
+El reset debe denominarse `rst` (o `i_reset`) cuando no sea necesario distinguir su polaridad mediante el nombre.
 
 Cuando resulte útil indicar explícitamente que una señal es activa en bajo, utilizar el sufijo `_n`.
 
 Ejemplo:
 
-```systemverilog
-logic rst_n;
+```verilog
+wire rst_n;
 ```
 
 Esto indica que la señal se considera activa cuando vale `0`.
@@ -303,18 +320,18 @@ No utilizar `_n` únicamente por costumbre: debe representar realmente una seña
 
 ## 11. Reloj
 
-Utilizar `clk` como nombre predeterminado para el reloj principal.
+Utilizar `clk` (o `i_clock`) como nombre predeterminado para el reloj principal.
 
-```systemverilog
-input logic clk;
+```verilog
+input wire clk;
 ```
 
 Si existen múltiples dominios de reloj, utilizar nombres que permitan identificar claramente cada uno:
 
-```systemverilog
-logic clk_uart;
-logic clk_cpu;
-logic clk_peripheral;
+```verilog
+wire clk_uart;
+wire clk_cpu;
+wire clk_peripheral;
 ```
 
 ---
@@ -325,26 +342,26 @@ Cuando el tamaño de un literal sea relevante, especificarlo explícitamente.
 
 Preferir:
 
-```systemverilog
+```verilog
 8'd255
 4'b1010
 ```
 
 sobre:
 
-```systemverilog
+```verilog
 255
 10
 ```
 
-Para poner un registro completamente en cero o en uno, utilizar el operador de replicación de tamaño:
+Para poner un registro parametrizado completamente en cero o en uno en Verilog-2001, utilizar el operador de replicación:
 
-```systemverilog
-counter_q <= '0;
-counter_q <= '1;
+```verilog
+counter_q <= {NB_COUNT{1'b0}};
+counter_q <= {NB_COUNT{1'b1}};
 ```
 
-Esto evita depender del ancho explícito de la señal.
+Esto evita depender de literales sin tamaño (`'0` / `'1`), que son exclusivos de SystemVerilog.
 
 ---
 
@@ -352,10 +369,10 @@ Esto evita depender del ancho explícito de la señal.
 
 Utilizar **4 espacios** para cada nivel de indentación.
 
-```systemverilog
-always_ff @(posedge clk) begin
+```verilog
+always @(posedge clk) begin
     if (rst) begin
-        data_q <= '0;
+        data_q <= {DATA_WIDTH{1'b0}};
     end else begin
         data_q <= data_d;
     end
@@ -380,8 +397,8 @@ Cuando sea posible, organizar los módulos siguiendo una estructura consistente:
 1. Declaración del módulo
 2. Parámetros
 3. Puertos
-4. Tipos y constantes locales
-5. Señales internas
+4. Constantes locales (localparam)
+5. Señales internas (wire / reg)
 6. Instancias de submódulos
 7. Lógica combinacional
 8. Lógica secuencial
@@ -389,33 +406,35 @@ Cuando sea posible, organizar los módulos siguiendo una estructura consistente:
 
 Ejemplo conceptual:
 
-```systemverilog
+```verilog
 module example #(
-    parameter int DATA_WIDTH = 8
+    parameter DATA_WIDTH = 8
 ) (
-    input  logic                 clk,
-    input  logic                 rst,
-    input  logic [DATA_WIDTH-1:0] data_i,
-    output logic [DATA_WIDTH-1:0] data_o
+    input  wire                  clk,
+    input  wire                  rst,
+    input  wire [DATA_WIDTH-1:0] data_i,
+    output wire [DATA_WIDTH-1:0] data_o
 );
 
-    // Tipos y constantes
+    // Constantes locales
 
     // Señales internas
-    logic [DATA_WIDTH-1:0] data_q;
-    logic [DATA_WIDTH-1:0] data_d;
+    reg [DATA_WIDTH-1:0] data_q;
+    reg [DATA_WIDTH-1:0] data_d;
 
     // Instancias
 
     // Lógica combinacional
-    always_comb begin
+    always @(*) begin
         ...
     end
 
     // Lógica secuencial
-    always_ff @(posedge clk) begin
+    always @(posedge clk) begin
         ...
     end
+
+    assign data_o = data_q;
 
 endmodule
 ```
@@ -430,16 +449,16 @@ Los comentarios deben explicar **por qué** existe una decisión de diseño cuan
 
 Preferir:
 
-```systemverilog
+```verilog
 // Se muestrea en el centro del bit para maximizar el margen frente
 // a errores de temporización.
 ```
 
 sobre:
 
-```systemverilog
+```verilog
 // Incrementa el contador.
-bit_counter <= bit_counter + 1;
+bit_counter <= bit_counter + 1'b1;
 ```
 
 No utilizar comentarios para describir literalmente instrucciones cuyo comportamiento ya resulta evidente.
@@ -450,7 +469,7 @@ No utilizar comentarios para describir literalmente instrucciones cuyo comportam
 
 Preferir conexiones mediante nombres de puertos:
 
-```systemverilog
+```verilog
 uart_rx u_uart_rx (
     .clk       (clk),
     .rst       (rst),
@@ -462,7 +481,7 @@ uart_rx u_uart_rx (
 
 Evitar conexiones posicionales:
 
-```systemverilog
+```verilog
 uart_rx u_uart_rx (
     clk,
     rst,
@@ -494,21 +513,23 @@ Cuando exista una excepción relevante, documentarla mediante un comentario cuan
 
 ## Resumen
 
-| Elemento              | Convención            |
-| --------------------- | --------------------- |
-| Archivos              | `lower_snake_case.sv` |
-| Módulos               | `lower_snake_case`    |
-| Instancias            | `u_nombre`            |
-| Señales               | `lower_snake_case`    |
-| Variables             | `lower_snake_case`    |
-| Parámetros            | `UPPER_SNAKE_CASE`    |
-| Estados FSM           | `StCamelCase`         |
-| Registro actual       | `_q`                  |
-| Próximo valor         | `_d`                  |
-| Reset activo bajo     | `_n`                  |
-| Reloj                 | `clk`                 |
-| Señales RTL           | `logic`               |
-| Lógica secuencial     | `always_ff`           |
-| Lógica combinacional  | `always_comb`         |
-| Indentación           | 4 espacios            |
-| Conexiones de módulos | Por nombre            |
+| Elemento              | Convención                     |
+| --------------------- | ------------------------------ |
+| Lenguaje RTL          | Verilog-2001                   |
+| Archivos RTL          | `lower_snake_case.v`           |
+| Archivos Testbench    | `tb_<modulo>.v` (o `.sv`)      |
+| Módulos               | `lower_snake_case`             |
+| Instancias            | `u_nombre`                     |
+| Señales               | `lower_snake_case`             |
+| Variables             | `lower_snake_case`             |
+| Parámetros            | `UPPER_SNAKE_CASE`             |
+| Estados FSM           | `StCamelCase` (`localparam`)   |
+| Registro actual       | `_q`                           |
+| Próximo valor         | `_d`                           |
+| Reset activo bajo     | `_n`                           |
+| Reloj                 | `clk` / `i_clock`              |
+| Señales RTL           | `wire` / `reg`                 |
+| Lógica secuencial     | `always @(posedge clk)` (`<=`) |
+| Lógica combinacional  | `always @(*)` (`=`) / `assign` |
+| Indentación           | 4 espacios                     |
+| Conexiones de módulos | Por nombre                     |
