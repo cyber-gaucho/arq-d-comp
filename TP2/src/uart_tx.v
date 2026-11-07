@@ -1,50 +1,48 @@
 module uart_tx #(
     // PARAMETERS
-    parameter int NB_DATA = 8,
-    parameter int NB_STOP = 1
+    parameter NB_DATA = 8,
+    parameter NB_STOP = 1
 ) (
     // OUTPUTS
-    output logic o_tx,
-    output logic o_tx_done,
+    output wire               o_tx,
+    output wire               o_tx_done,
 
     // INPUTS
-    input logic               i_clock,
-    input logic               i_reset,
-    input logic               i_tx_start,
-    input logic               i_s_tick,
-    input logic [NB_DATA-1:0] i_d_in
+    input  wire               i_clock,
+    input  wire               i_reset,
+    input  wire               i_tx_start,
+    input  wire               i_s_tick,
+    input  wire [NB_DATA-1:0] i_d_in
 );
 
     // -------------------------------------------------------------------------
     // Parametros locales
     // -------------------------------------------------------------------------
-    localparam int STOP_TICKS      = 16 * NB_STOP;
-    localparam int MAX_TICKS       = (STOP_TICKS > 16) ? STOP_TICKS : 16;
-    localparam int NB_TICK_COUNTER = $clog2(MAX_TICKS);
-    localparam int NB_DATA_COUNTER = (NB_DATA > 1) ? $clog2(NB_DATA) : 1;
+    localparam STOP_TICKS      = 16 * NB_STOP;
+    localparam MAX_TICKS       = (STOP_TICKS > 16) ? STOP_TICKS : 16;
+    localparam NB_TICK_COUNTER = $clog2(MAX_TICKS);
+    localparam NB_DATA_COUNTER = (NB_DATA > 1) ? $clog2(NB_DATA) : 1;
 
     // -------------------------------------------------------------------------
     // Codificacion de estados (One-Hot)
     // -------------------------------------------------------------------------
-    typedef enum logic [3:0] {
-        StIdle  = 4'b0001,
-        StStart = 4'b0010,
-        StData  = 4'b0100,
-        StStop  = 4'b1000
-    } state_t;
+    localparam [3:0] StIdle  = 4'b0001;
+    localparam [3:0] StStart = 4'b0010;
+    localparam [3:0] StData  = 4'b0100;
+    localparam [3:0] StStop  = 4'b1000;
 
-    state_t                     state_q;
-    state_t                     state_d;
-    logic [NB_TICK_COUNTER-1:0] tick_counter_q;
-    logic [NB_DATA_COUNTER-1:0] data_counter_q;
-    logic [NB_DATA-1:0]         data_q;
-    logic                       tx_q;
-    logic                       tx_done_q;
+    reg [3:0]                 state_q;
+    reg [3:0]                 state_d;
+    reg [NB_TICK_COUNTER-1:0] tick_counter_q;
+    reg [NB_DATA_COUNTER-1:0] data_counter_q;
+    reg [NB_DATA-1:0]         data_q;
+    reg                       tx_q;
+    reg                       tx_done_q;
 
     // -------------------------------------------------------------------------
     // BLOQUE 1 - Registro de estado
     // -------------------------------------------------------------------------
-    always_ff @(posedge i_clock) begin : State_register
+    always @(posedge i_clock) begin : State_register
         if (i_reset) begin
             state_q <= StIdle;
         end else begin
@@ -55,7 +53,7 @@ module uart_tx #(
     // -------------------------------------------------------------------------
     // BLOQUE 2 - Logica de proximo estado
     // -------------------------------------------------------------------------
-    always_comb begin : Next_state_logic
+    always @(*) begin : Next_state_logic
         state_d = state_q;
 
         case (state_q)
@@ -66,20 +64,20 @@ module uart_tx #(
             end
 
             StStart: begin
-                if (i_s_tick && (tick_counter_q == NB_TICK_COUNTER'(15))) begin
+                if (i_s_tick && (tick_counter_q == 15)) begin
                     state_d = StData;
                 end
             end
 
             StData: begin
-                if (i_s_tick && (tick_counter_q == NB_TICK_COUNTER'(15)) &&
-                    (data_counter_q == NB_DATA_COUNTER'(NB_DATA - 1))) begin
+                if (i_s_tick && (tick_counter_q == 15) &&
+                    (data_counter_q == (NB_DATA - 1))) begin
                     state_d = StStop;
                 end
             end
 
             StStop: begin
-                if (i_s_tick && (tick_counter_q == NB_TICK_COUNTER'(STOP_TICKS - 1))) begin
+                if (i_s_tick && (tick_counter_q == (STOP_TICKS - 1))) begin
                     state_d = StIdle;
                 end
             end
@@ -94,11 +92,11 @@ module uart_tx #(
     // -------------------------------------------------------------------------
     // BLOQUE 3 - Registros internos del datapath
     // -------------------------------------------------------------------------
-    always_ff @(posedge i_clock) begin : Datapath_registers
+    always @(posedge i_clock) begin : Datapath_registers
         if (i_reset) begin
-            tick_counter_q <= '0;
-            data_counter_q <= '0;
-            data_q         <= '0;
+            tick_counter_q <= {NB_TICK_COUNTER{1'b0}};
+            data_counter_q <= {NB_DATA_COUNTER{1'b0}};
+            data_q         <= {NB_DATA{1'b0}};
             tx_q           <= 1'b1;
             tx_done_q      <= 1'b0;
         end else begin
@@ -110,16 +108,16 @@ module uart_tx #(
                     tx_q <= 1'b1;
                     if (i_tx_start) begin
                         data_q         <= i_d_in;
-                        tick_counter_q <= '0;
-                        data_counter_q <= '0;
+                        tick_counter_q <= {NB_TICK_COUNTER{1'b0}};
+                        data_counter_q <= {NB_DATA_COUNTER{1'b0}};
                     end
                 end
 
                 StStart: begin
                     tx_q <= 1'b0;
                     if (i_s_tick) begin
-                        if (tick_counter_q == NB_TICK_COUNTER'(15)) begin
-                            tick_counter_q <= '0;
+                        if (tick_counter_q == 15) begin
+                            tick_counter_q <= {NB_TICK_COUNTER{1'b0}};
                         end else begin
                             tick_counter_q <= tick_counter_q + 1'b1;
                         end
@@ -129,11 +127,11 @@ module uart_tx #(
                 StData: begin
                     tx_q <= data_q[0];
                     if (i_s_tick) begin
-                        if (tick_counter_q == NB_TICK_COUNTER'(15)) begin
-                            tick_counter_q <= '0;
+                        if (tick_counter_q == 15) begin
+                            tick_counter_q <= {NB_TICK_COUNTER{1'b0}};
                             data_q         <= {1'b0, data_q[NB_DATA-1:1]};
-                            if (data_counter_q == NB_DATA_COUNTER'(NB_DATA - 1)) begin
-                                data_counter_q <= '0;
+                            if (data_counter_q == (NB_DATA - 1)) begin
+                                data_counter_q <= {NB_DATA_COUNTER{1'b0}};
                             end else begin
                                 data_counter_q <= data_counter_q + 1'b1;
                             end
@@ -146,7 +144,7 @@ module uart_tx #(
                 StStop: begin
                     tx_q <= 1'b1;
                     if (i_s_tick) begin
-                        if (tick_counter_q == NB_TICK_COUNTER'(STOP_TICKS - 1)) begin
+                        if (tick_counter_q == (STOP_TICKS - 1)) begin
                             tx_done_q <= 1'b1;
                         end else begin
                             tick_counter_q <= tick_counter_q + 1'b1;
@@ -170,4 +168,3 @@ module uart_tx #(
     assign o_tx_done = tx_done_q;
 
 endmodule
-
