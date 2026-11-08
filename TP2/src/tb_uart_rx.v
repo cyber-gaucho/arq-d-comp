@@ -56,6 +56,18 @@ module tb_uart_rx;
     integer pass_cnt;
     integer fail_cnt;
 
+    // Flag que atrapa el pulso de 1 ciclo rx_done en segundo plano
+    reg rx_done_seen;
+    always @(posedge clock) begin
+        if (reset) begin
+            rx_done_seen <= 1'b0;
+        end else begin
+            if (rx_done) begin
+                rx_done_seen <= 1'b1;
+            end
+        end
+    end
+
     task wait_ticks;
         input integer count;
         integer seen;
@@ -73,9 +85,12 @@ module tb_uart_rx;
         input [NB_DATA-1:0] byte_val;
         integer i;
         integer timeout_cnt;
-        reg     done_seen;
         begin
             $display("[INFO] Enviando byte serial: 0x%02X", byte_val);
+
+            // Limpiar captura previa de rx_done
+            @(posedge clock);
+            rx_done_seen = 1'b0;
 
             // Bit de inicio (Start = 0)
             @(negedge clock);
@@ -94,21 +109,17 @@ module tb_uart_rx;
 
             // Esperar y validar recepcion
             timeout_cnt = 0;
-            done_seen   = 1'b0;
-            while (!done_seen && timeout_cnt < 100) begin
+            while (!rx_done_seen && timeout_cnt < 100) begin
                 @(posedge clock);
                 timeout_cnt = timeout_cnt + 1;
-                if (rx_done === 1'b1) begin
-                    done_seen = 1'b1;
-                end
             end
 
-            if (done_seen && (d_out === byte_val)) begin
-                $display("[PASS] Byte recibido correctamente: 0x%02X (rx_done=1)", d_out);
+            if (rx_done_seen && (d_out === byte_val)) begin
+                $display("[PASS] Byte recibido correctamente: 0x%02X (rx_done detectado)", d_out);
                 pass_cnt = pass_cnt + 1;
             end else begin
-                $display("[FAIL] Recepcion incorrecta. rx_done=%b, d_out=0x%02X (esperado 0x%02X)",
-                         done_seen, d_out, byte_val);
+                $display("[FAIL] Recepcion incorrecta. rx_done_seen=%b, d_out=0x%02X (esperado 0x%02X)",
+                         rx_done_seen, d_out, byte_val);
                 fail_cnt = fail_cnt + 1;
             end
 
@@ -120,16 +131,19 @@ module tb_uart_rx;
     task inject_glitch;
         begin
             $display("\n--- Test: Inyectando pulso espurio / ruido en Start ---");
+            @(posedge clock);
+            rx_done_seen = 1'b0;
+
             @(negedge clock);
             rx = 1'b0;
             // Glitch que dura solo 3 ticks (menos de 7 ticks)
             wait_ticks(3);
             rx = 1'b1;
 
-            // Esperar suficiente tiempo para verificar que no emita rx_done ni cambie d_out
+            // Esperar suficiente tiempo para verificar que no emita rx_done
             wait_ticks(32);
 
-            if (rx_done === 1'b0) begin
+            if (rx_done_seen === 1'b0) begin
                 $display("[PASS] Glitch rechazado correctamente (no se disparo falsa recepcion)");
                 pass_cnt = pass_cnt + 1;
             end else begin
@@ -145,6 +159,7 @@ module tb_uart_rx;
         rx           = 1;
         tick_divider = 0;
         s_tick       = 0;
+        rx_done_seen = 0;
         pass_cnt     = 0;
         fail_cnt     = 0;
 
@@ -189,4 +204,3 @@ module tb_uart_rx;
     end
 
 endmodule
-
