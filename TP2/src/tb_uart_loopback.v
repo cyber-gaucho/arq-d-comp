@@ -9,25 +9,25 @@
 
 module tb_uart_loopback;
 
-    localparam int unsigned CLOCK_FREQ = 100_000_000;
+    parameter CLOCK_FREQ = 100_000_000;
     // Usamos baud rate alto para acelerar los tiempos de simulacion
-    localparam int unsigned BAUD_RATE  = 1_000_000;
-    localparam int NB_DATA             = 8;
-    localparam int NB_STOP             = 1;
+    parameter BAUD_RATE  = 1_000_000;
+    parameter NB_DATA    = 8;
+    parameter NB_STOP    = 1;
 
-    logic               clock;
-    logic               reset;
-    logic               s_tick;
+    reg               clock;
+    reg               reset;
+    wire              s_tick;
 
     // Conexiones TX
-    logic               tx_start;
-    logic [NB_DATA-1:0] tx_data_in;
-    logic               tx_line;
-    logic               tx_done;
+    reg               tx_start;
+    reg  [NB_DATA-1:0] tx_data_in;
+    wire              tx_line;
+    wire              tx_done;
 
     // Conexiones RX
-    logic [NB_DATA-1:0] rx_data_out;
-    logic               rx_done;
+    wire [NB_DATA-1:0] rx_data_out;
+    wire              rx_done;
 
     // 1. Instancia BRG
     uart_brg #(
@@ -69,10 +69,13 @@ module tb_uart_loopback;
     // Reloj de 100 MHz (periodo 10 ns)
     always #5 clock = ~clock;
 
-    int pass_cnt = 0;
-    int fail_cnt = 0;
+    integer pass_cnt;
+    integer fail_cnt;
 
-    task send_and_verify(input [NB_DATA-1:0] byte_to_send);
+    task send_and_verify;
+        input [NB_DATA-1:0] byte_to_send;
+        integer timeout_cnt;
+        reg     rx_seen;
         begin
             @(negedge clock);
             tx_data_in = byte_to_send;
@@ -82,20 +85,29 @@ module tb_uart_loopback;
             tx_start   = 1'b0;
 
             // Esperar que termine la recepcion
-            @(posedge rx_done);
-            @(posedge clock);
-
-            if (rx_data_out === byte_to_send) begin
-                $display("[PASS] Byte transmitido: 0x%02X, Byte recibido: 0x%02X", byte_to_send, rx_data_out);
-                pass_cnt++;
-            end else begin
-                $display("[FAIL] Byte transmitido: 0x%02X, Byte recibido: 0x%02X (INCORRECTO)", byte_to_send, rx_data_out);
-                fail_cnt++;
+            timeout_cnt = 0;
+            rx_seen     = 1'b0;
+            while (!rx_seen && timeout_cnt < 20000) begin
+                @(posedge clock);
+                timeout_cnt = timeout_cnt + 1;
+                if (rx_done === 1'b1) begin
+                    rx_seen = 1'b1;
+                end
             end
 
-            // Esperar tx_done
-            if (!tx_done) begin
-                @(posedge tx_done);
+            if (rx_seen && (rx_data_out === byte_to_send)) begin
+                $display("[PASS] Byte transmitido: 0x%02X, Byte recibido: 0x%02X", byte_to_send, rx_data_out);
+                pass_cnt = pass_cnt + 1;
+            end else begin
+                $display("[FAIL] Byte transmitido: 0x%02X, Byte recibido: 0x%02X (INCORRECTO)", byte_to_send, rx_data_out);
+                fail_cnt = fail_cnt + 1;
+            end
+
+            // Esperar tx_done si aun no finalizo
+            timeout_cnt = 0;
+            while (!tx_done && timeout_cnt < 1000) begin
+                @(posedge clock);
+                timeout_cnt = timeout_cnt + 1;
             end
 
             repeat (20) @(posedge clock);
@@ -106,7 +118,9 @@ module tb_uart_loopback;
         clock      = 0;
         reset      = 1;
         tx_start   = 0;
-        tx_data_in = '0;
+        tx_data_in = {NB_DATA{1'b0}};
+        pass_cnt   = 0;
+        fail_cnt   = 0;
 
         repeat (10) @(posedge clock);
         reset = 0;
