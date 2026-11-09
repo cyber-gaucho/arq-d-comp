@@ -38,6 +38,14 @@ run_loopback() {
     echo
 }
 
+run_top() {
+    echo "=== Testbench TOP (Full-System Integration) ==="
+    iverilog -g2001 -Wall -o tb_top_sim tb_top.v top.v uart_brg.v uart_rx.v uart_tx.v uart_alu_interface.v fifo.v alu_top.v alu_ctrl.v alu.v
+    vvp tb_top_sim
+    rm -f tb_top_sim
+    echo
+}
+
 case "$TARGET" in
     brg)
         run_brg
@@ -55,17 +63,21 @@ case "$TARGET" in
         run_loopback
         ;;
 
+    top)
+        run_top
+        ;;
+
     all)
         run_tx
         run_rx
         run_loopback
+        run_top
         ;;
 
     *)
-        echo "Uso: $0 [brg|tx|rx|loopback|all]"
+        echo "Uso: $0 [brg|tx|rx|loopback|top|all]"
         exit 1
         ;;
 esac
 
 echo "=== Simulacion de TP2 finalizada correctamente ==="
-
