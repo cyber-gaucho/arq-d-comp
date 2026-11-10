@@ -38,6 +38,20 @@ run_loopback() {
     echo
 }
 
+run_interface() {
+    echo "=== Testbench UART-ALU Interface ==="
+    iverilog -g2001 -Wall -o tb_uart_alu_interface_sim \
+        tb_uart_alu_interface.v \
+        fifo.v \
+        uart_alu_interface.v \
+        alu.v \
+        alu_ctrl.v \
+        alu_top.v
+    vvp tb_uart_alu_interface_sim
+    rm -f tb_uart_alu_interface_sim
+    echo
+}
+
 run_top() {
     echo "=== Testbench TOP (Full-System Integration) ==="
     iverilog -g2001 -Wall -o tb_top_sim tb_top.v top.v uart_brg.v uart_rx.v uart_tx.v uart_alu_interface.v fifo.v alu_top.v alu_ctrl.v alu.v
@@ -63,6 +77,10 @@ case "$TARGET" in
         run_loopback
         ;;
 
+    interface)
+        run_interface
+        ;;
+
     top)
         run_top
         ;;
@@ -71,11 +89,12 @@ case "$TARGET" in
         run_tx
         run_rx
         run_loopback
+        run_interface
         run_top
         ;;
 
     *)
-        echo "Uso: $0 [brg|tx|rx|loopback|top|all]"
+        echo "Uso: $0 [brg|tx|rx|loopback|interface|top|all]"
         exit 1
         ;;
 esac
