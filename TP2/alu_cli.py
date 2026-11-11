@@ -876,50 +876,71 @@ class AluTuiApp:
             box_title(f"MAPA DE LEDs FÍSICOS DIGILENT BASYS 3 (LED[15:0]) — {modo_led_lbl}", width)
         )
 
-        # Construir iconos de los 16 LEDs: LD15 (OVF), LD14 (ZERO), LD13..8 (0), LD7..0 (Resultado)
-        ic_ovf = f"{Ansi.BOLD}{Ansi.FG_RED} ● {Ansi.RESET}" if ovf_led else f"{Ansi.DIM} ○ {Ansi.RESET}"
-        ic_zro = f"{Ansi.BOLD}{Ansi.FG_CYAN} ● {Ansi.RESET}" if zero_led else f"{Ansi.DIM} ○ {Ansi.RESET}"
-        ic_off = " ".join([f"{Ansi.DIM} ○ {Ansi.RESET}"] * 6)
+        # Definir ancho uniforme de columna para alinear perfectamente los 16 LEDs
+        def format_col(text, col_w):
+            vis = len(strip_ansi(text))
+            left = (col_w - vis) // 2
+            right = col_w - vis - left
+            return (" " * left) + text + (" " * right)
 
-        bits_res_icons = []
-        bits_res_nums = []
-        for bit in range(7, -1, -1):
-            b_val = (val_leds >> bit) & 1
-            if b_val:
-                bits_res_icons.append(f"{Ansi.BOLD}{Ansi.FG_GREEN} ● {Ansi.RESET}")
-                bits_res_nums.append(f"{Ansi.BOLD}{Ansi.FG_GREEN} 1 {Ansi.RESET}")
+        cell_w = 6 if width >= 106 else 5
+        gap_grp = "  " if cell_w == 6 else "   "
+
+        c_ovf = f"{Ansi.BOLD}{Ansi.FG_RED}●{Ansi.RESET}" if ovf_led else f"{Ansi.DIM}○{Ansi.RESET}"
+        c_zero = f"{Ansi.BOLD}{Ansi.FG_CYAN}●{Ansi.RESET}" if zero_led else f"{Ansi.DIM}○{Ansi.RESET}"
+
+        cells_led = [format_col(c_ovf, cell_w), format_col(c_zero, cell_w), gap_grp]
+        cells_nom = [format_col("LD15", cell_w), format_col("LD14", cell_w), gap_grp]
+        cells_val = [format_col(f"({ovf_led})", cell_w), format_col(f"({zero_led})", cell_w), gap_grp]
+
+        for b in range(13, 7, -1):
+            cells_led.append(format_col(f"{Ansi.DIM}○{Ansi.RESET}", cell_w))
+            cells_nom.append(format_col(f"{Ansi.DIM}LD{b}{Ansi.RESET}", cell_w))
+            cells_val.append(format_col(f"{Ansi.DIM}0{Ansi.RESET}", cell_w))
+
+        cells_led.append(gap_grp)
+        cells_nom.append(gap_grp)
+        cells_val.append(gap_grp)
+
+        for b in range(7, -1, -1):
+            bit_on = (val_leds >> b) & 1
+            if bit_on:
+                ic = f"{Ansi.BOLD}{Ansi.FG_GREEN}●{Ansi.RESET}"
+                num = f"{Ansi.BOLD}{Ansi.FG_GREEN}1{Ansi.RESET}"
             else:
-                bits_res_icons.append(f"{Ansi.DIM} ○ {Ansi.RESET}")
-                bits_res_nums.append(f"{Ansi.DIM} 0 {Ansi.RESET}")
+                ic = f"{Ansi.DIM}○{Ansi.RESET}"
+                num = f"{Ansi.DIM}0{Ansi.RESET}"
+            cells_led.append(format_col(ic, cell_w))
+            cells_nom.append(format_col(f"LD{b}", cell_w))
+            cells_val.append(format_col(num, cell_w))
 
-        fila_etiquetas = (
-            f"  {Ansi.BOLD}OVF  ZERO{Ansi.RESET}   "
-            f"{Ansi.DIM}┌───────── LED[13:8] Apagados ─────────┐{Ansi.RESET}   "
-            f"{Ansi.BOLD}┌─────────── LED[7:0] Resultado ALU ───────────┐{Ansi.RESET}"
-        )
-        fila_leds = (
-            f"  {ic_ovf}  {ic_zro}    "
-            f"  {ic_off}            "
-            f"{'   '.join(bits_res_icons)}"
-        )
-        fila_nombres = (
-            f" {Ansi.DIM}LD15  LD14    LD13 LD12 LD11 LD10  LD9  LD8           "
-            f"LD7   LD6   LD5   LD4   LD3   LD2   LD1   LD0{Ansi.RESET}"
-        )
-        fila_valores = (
-            f"  ({ovf_led})   ({zero_led})     "
-            f"{Ansi.DIM} 0    0    0    0    0    0{Ansi.RESET}            "
-            f"{'   '.join(bits_res_nums)}"
-        )
+        f_ovf = format_col(f"{Ansi.BOLD}OVF{Ansi.RESET}", cell_w)
+        f_zro = format_col(f"{Ansi.BOLD}ZERO{Ansi.RESET}", cell_w)
 
-        lineas.append(box_row(fila_etiquetas, width))
-        lineas.append(box_row(fila_leds, width))
-        lineas.append(box_row(fila_nombres, width))
-        lineas.append(box_row(fila_valores, width))
+        if cell_w == 6:
+            b_apag = "┌─────── LED[13:8] Apagados ───────┐"
+            b_res  = "┌─────────── LED[7:0] Resultado ALU ───────────┐"
+        else:
+            b_apag = "┌─── LED[13:8] Apagados ─────┐"
+            b_res  = "┌─────── LED[7:0] Resultado ALU ───────┐"
+
+        raw_hdr = f"{f_ovf}{f_zro}{gap_grp}{Ansi.DIM}{b_apag}{Ansi.RESET}{gap_grp}{Ansi.BOLD}{b_res}{Ansi.RESET}"
+        raw_led = "".join(cells_led)
+        raw_nom = "".join(cells_nom)
+        raw_val = "".join(cells_val)
+
+        vis_total = len(strip_ansi(raw_hdr))
+        pad_left = max(0, (width - 4 - vis_total) // 2)
+        lead = " " * pad_left
+
+        lineas.append(box_row(lead + raw_hdr, width))
+        lineas.append(box_row(lead + raw_led, width))
+        lineas.append(box_row(lead + raw_nom, width))
+        lineas.append(box_row(lead + raw_val, width))
         lineas.append(box_line("╰", "─", "╯", width, Ansi.FG_BLUE))
 
         # ---------------------------------------------------------------------
-        # 5. BARRA DE ESTADO Y CONTROLES DE TECLADO
+        # 5. BARRA DE ESTADO Y CONTROLES DE TECLADO (ENCAPSULADOS EN PANEL)
         # ---------------------------------------------------------------------
         if self.mensaje_tipo == "OK":
             color_msg = Ansi.BOLD + Ansi.FG_GREEN
@@ -930,23 +951,44 @@ class AluTuiApp:
         else:
             color_msg = Ansi.FG_CYAN
 
-        lineas.append(f" {color_msg}▶ {self.mensaje_barra}{Ansi.RESET}")
+        lineas.append(box_line("╭", "─", "╮", width, Ansi.FG_BLUE))
+        lineas.append(box_row(f"{color_msg}▶ {self.mensaje_barra}{Ansi.RESET}", width))
+        lineas.append(box_line("├", "─", "┤", width, Ansi.FG_BLUE))
 
-        controles_1 = (
-            f" {Ansi.REVERSE}{Ansi.BOLD} ESPACIO {Ansi.RESET} Paso ▶  "
-            f"{Ansi.REVERSE}{Ansi.BOLD} ENTER {Ansi.RESET} Ejecutar actual  "
-            f"{Ansi.REVERSE}{Ansi.BOLD} ↑/↓ {Ansi.RESET} Navegar  "
-            f"{Ansi.REVERSE}{Ansi.BOLD} B {Ansi.RESET} Byte-a-Byte  "
-            f"{Ansi.REVERSE}{Ansi.BOLD} I / 1-8 {Ansi.RESET} Op. Manual  "
+        ctrl_single = (
+            f"{Ansi.REVERSE}{Ansi.BOLD} ESPACIO {Ansi.RESET} Paso  "
+            f"{Ansi.REVERSE}{Ansi.BOLD} ENTER {Ansi.RESET} Ejec  "
+            f"{Ansi.REVERSE}{Ansi.BOLD} ↑/↓ {Ansi.RESET} Sel  "
+            f"{Ansi.REVERSE}{Ansi.BOLD} B {Ansi.RESET} Byte  "
+            f"{Ansi.REVERSE}{Ansi.BOLD} I/1-8 {Ansi.RESET} Op  "
             f"{Ansi.REVERSE}{Ansi.BOLD} A {Ansi.RESET} Auto  "
-            f"{Ansi.REVERSE}{Ansi.BOLD} R {Ansi.RESET} Reiniciar  "
-            f"{Ansi.REVERSE}{Ansi.BOLD} M {Ansi.RESET} Mock/HW  "
+            f"{Ansi.REVERSE}{Ansi.BOLD} R {Ansi.RESET} Reset  "
+            f"{Ansi.REVERSE}{Ansi.BOLD} M {Ansi.RESET} Mock  "
             f"{Ansi.REVERSE}{Ansi.BOLD} Q {Ansi.RESET} Salir"
         )
-        lineas.append(controles_1)
+        ctrl_multi1 = (
+            f"{Ansi.REVERSE}{Ansi.BOLD} ESPACIO {Ansi.RESET} Paso siguiente   "
+            f"{Ansi.REVERSE}{Ansi.BOLD} ENTER {Ansi.RESET} Ejecutar actual   "
+            f"{Ansi.REVERSE}{Ansi.BOLD} ↑/↓ {Ansi.RESET} Navegar   "
+            f"{Ansi.REVERSE}{Ansi.BOLD} B {Ansi.RESET} Byte-a-Byte"
+        )
+        ctrl_multi2 = (
+            f"{Ansi.REVERSE}{Ansi.BOLD} I/1-8 {Ansi.RESET} Op. Manual   "
+            f"{Ansi.REVERSE}{Ansi.BOLD} A {Ansi.RESET} Auto-Demo   "
+            f"{Ansi.REVERSE}{Ansi.BOLD} R {Ansi.RESET} Reiniciar   "
+            f"{Ansi.REVERSE}{Ansi.BOLD} M {Ansi.RESET} Mock/HW   "
+            f"{Ansi.REVERSE}{Ansi.BOLD} Q/ESC {Ansi.RESET} Salir"
+        )
 
-        # Volcar todo al buffer de pantalla sin parpadeo
-        salida = Ansi.HOME + "\n".join(lineas) + Ansi.CLEAR_EOS
+        if len(strip_ansi(ctrl_single)) <= width - 4:
+            lineas.append(box_row(ctrl_single, width))
+        else:
+            lineas.append(box_row(ctrl_multi1, width))
+            lineas.append(box_row(ctrl_multi2, width))
+        lineas.append(box_line("╰", "─", "╯", width, Ansi.FG_BLUE))
+
+        # Volcar todo al buffer de pantalla sin parpadeo y asegurando limpieza de linea
+        salida = Ansi.HOME + "\n".join([f"{l}\033[K" for l in lineas]) + Ansi.CLEAR_EOS
         sys.stdout.write(salida)
         sys.stdout.flush()
 
