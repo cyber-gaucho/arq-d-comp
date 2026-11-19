@@ -37,12 +37,8 @@
    - 6.2. [Modo de ejecución directa por línea de comandos (CLI)](#62-modo-de-ejecución-directa-por-línea-de-comandos-cli)
    - 6.3. [Emulador local (`MockSerial`) y verificación cruzada](#63-emulador-local-mockserial-y-verificación-cruzada)
 7. [Verificación mediante simulación](#7-verificación-mediante-simulación)
-   - 7.1. [Simulación del receptor UART (`tb_uart_rx`)](#71-simulación-del-receptor-uart-tb_uart_rx)
-   - 7.2. [Simulación del transmisor UART (`tb_uart_tx`)](#72-simulación-del-transmisor-uart-tb_uart_tx)
-   - 7.3. [Simulación de loopback UART (`tb_uart_loopback`)](#73-simulación-de-loopback-uart-tb_uart_loopback)
-   - 7.4. [Simulación de la interfaz UART-ALU (`tb_uart_alu_interface`)](#74-simulación-de-la-interfaz-uart-alu-tb_uart_alu_interface)
-   - 7.5. [Simulación de integración de nivel superior (`tb_top`)](#75-simulación-de-integración-de-nivel-superior-tb_top)
-   - 7.6. [Automatización de pruebas (`test.sh`)](#76-automatización-de-pruebas-testsh)
+   - 7.1. [Bancos de prueba implementados](#71-bancos-de-prueba-implementados)
+   - 7.2. [Automatización de pruebas (`test.sh`)](#72-automatización-de-pruebas-testsh)
 8. [Decisiones técnicas y de diseño](#8-decisiones-técnicas-y-de-diseño)
    - 8.1. [Estrategia de sobremuestreo a 16x y sincronización](#81-estrategia-de-sobremuestreo-a-16x-y-sincronización)
    - 8.2. [Desacoplamiento temporal mediante memorias FIFO circulares](#82-desacoplamiento-temporal-mediante-memorias-fifo-circulares)
@@ -90,12 +86,6 @@ La comunicación física emplea el formato estándar **8N1** a una velocidad por
 - **Paridad:** sin bit de paridad (*None*).
 - **Bit de parada (*Stop*, `NB_STOP = 1`):** nivel lógico alto (`1`) durante 1 período de bit.
 
-**Figura 2 — Estructura temporal de la trama UART (8N1)**
-
-<p align="center">
-  <img src="./assets/uart-frame-8n1.png" alt="Estructura temporal de la trama serie UART 8N1" width="75%" />
-</p>
-
 ### 3.2. Protocolo de aplicación para transacciones con la ALU
 
 Cada operación se compone del envío secuencial de **3 bytes** desde la PC hacia la FPGA, seguido de **1 byte** de respuesta desde la FPGA hacia la PC:
@@ -132,12 +122,6 @@ $$
 
 Esto produce una tasa efectiva de $\approx 9600{,}61\text{ bps}$ (error relativo del $0{,}006\%$, despreciable frente a la tolerancia de $\pm 2\%$ del protocolo UART).
 
-**Figura 3 — Esquemático RTL del Baud Rate Generator (`uart_brg`)**
-
-<p align="center">
-  <img src="./assets/rtl-uart-brg.png" alt="Esquemático RTL del módulo uart_brg" width="65%" />
-</p>
-
 ### 4.2. Receptor UART (`uart_rx`)
 
 El módulo `uart_rx` recibe la línea serie asíncrona `i_rx` y reconstruye los bytes entrantes. En su etapa de entrada cuenta con un **sincronizador de doble flip-flop** (`rx_sync1_q` y `rx_sync2_q`) inicializado en alto para evitar problemas de metaestabilidad al cruzar al dominio de reloj de 100 MHz.
@@ -149,18 +133,6 @@ Su máquina de estados posee cuatro estados codificados en *One-Hot*:
 - `StData` (`4'b0100`): cada 16 ticks (`tick_counter_q == 15`), muestrea el centro de cada bit de datos y lo desplaza desde el MSB hacia el LSB en `data_q` (`{rx_sync, data_q[7:1]}`). Tras 8 bits, avanza a `StStop`.
 - `StStop` (`4'b1000`): espera los 16 ticks del bit de parada, emite un pulso de un ciclo en `o_rx_done` y retorna a `StIdle`.
 
-**Figura 4 — Diagrama de estados (FSM) del receptor UART (`uart_rx`)**
-
-<p align="center">
-  <img src="./assets/fsm-uart-rx.png" alt="Diagrama de estados de la FSM del módulo uart_rx" width="70%" />
-</p>
-
-**Figura 5 — Esquemático RTL del receptor UART (`uart_rx`)**
-
-<p align="center">
-  <img src="./assets/rtl-uart-rx.png" alt="Esquemático RTL del módulo uart_rx" width="70%" />
-</p>
-
 ### 4.3. Transmisor UART (`uart_tx`)
 
 El módulo `uart_tx` toma un byte paralelo en `i_d_in` cuando recibe el pulso `i_tx_start` y lo serializa por la línea `o_tx`. Su FSM también utiliza cuatro estados en codificación *One-Hot*:
@@ -170,18 +142,6 @@ El módulo `uart_tx` toma un byte paralelo en `i_d_in` cuando recibe el pulso `i
 - `StData` (`4'b0100`): expone `data_q[0]` en la salida y desplaza el registro a la derecha cada 16 ticks hasta completar los 8 bits.
 - `StStop` (`4'b1000`): restablece `o_tx = 1` durante 16 ticks, activa el pulso `o_tx_done` por un ciclo de reloj y regresa a `StIdle`.
 
-**Figura 6 — Diagrama de estados (FSM) del transmisor UART (`uart_tx`)**
-
-<p align="center">
-  <img src="./assets/fsm-uart-tx.png" alt="Diagrama de estados de la FSM del módulo uart_tx" width="70%" />
-</p>
-
-**Figura 7 — Esquemático RTL del transmisor UART (`uart_tx`)**
-
-<p align="center">
-  <img src="./assets/rtl-uart-tx.png" alt="Esquemático RTL del módulo uart_tx" width="70%" />
-</p>
-
 ### 4.4. Colas FIFO desacopladoras (`fifo`)
 
 El módulo `fifo` implementa una memoria circular síncrona parametrizable (`NB_DATA = 8`, `FIFO_DEPTH = 8`) con arquitectura de lectura **FWFT** (*First-Word Fall-Through*):
@@ -190,24 +150,12 @@ El módulo `fifo` implementa una memoria circular síncrona parametrizable (`NB_
 - El pulso `i_rd` confirma el consumo del dato actual e incrementa `rd_ptr_q`, lo que permite a las máquinas consumidoras capturar el dato y avanzar el puntero en el mismo ciclo de reloj sin penalidad de latencia.
 - Un contador de ocupación (`count_q`) gestiona las señales `o_empty` (`count_q == 0`) y `o_full` (`count_q == FIFO_DEPTH`), soportando operaciones de lectura y escritura simultáneas (`{i_wr, i_rd} == 2'b11`).
 
-**Figura 8 — Esquemático RTL de la memoria FIFO circular (`fifo`)**
-
-<p align="center">
-  <img src="./assets/rtl-fifo.png" alt="Esquemático RTL del módulo fifo" width="65%" />
-</p>
-
 ### 4.5. Circuito de interfaz (`uart_alu_interface`)
 
 Este módulo conecta los bloques `uart_rx` y `uart_tx` con el subsistema de la ALU mediante dos instancias del módulo `fifo`:
 
 - **Lado recepción (`u_fifo_rx`):** cada pulso `i_rx_done` escribe directamente `i_rx_data` en la FIFO de recepción. Hacia la ALU expone la interfaz estándar `o_r_data`, `o_rx_empty` e `i_rd`.
 - **Lado transmisión (`u_fifo_tx` + FSM serializadora):** la ALU deposita resultados mediante `i_w_data` e `i_wr`. Una FSM interna de dos estados (`StTxIdle` y `StTxWait`) monitorea `tx_fifo_empty`: en cuanto detecta un byte pendiente, lo extrae (`tx_fifo_rd = 1`), dispara `o_tx_start` hacia `uart_tx` y aguarda en `StTxWait` hasta recibir la confirmación `i_tx_done`.
-
-**Figura 9 — Esquemático RTL del circuito de interfaz (`uart_alu_interface`)**
-
-<p align="center">
-  <img src="./assets/rtl-uart-alu-interface.png" alt="Esquemático RTL del módulo uart_alu_interface" width="75%" />
-</p>
 
 ### 4.6. Subsistema de procesamiento (`alu_top` / `alu_ctrl` / `alu`)
 
@@ -220,23 +168,17 @@ El módulo `alu_top` encapsula al controlador `alu_ctrl` y al núcleo combinacio
   4. `StSendResult` (`4'b1000`): con los tres registros cargados, el resultado combinacional `i_alu_result` ya es válido. Si `!i_tx_full`, escribe `o_w_data = i_alu_result` con `o_wr = 1` y regresa a `StWaitOpA`.
 - **`alu`:** realiza de forma combinacional las 8 operaciones sobre `o_operand_a` y `o_operand_b`, generando `o_result`, `o_zero` y `o_overflow`.
 
-**Figura 10 — Diagrama de estados de la FSM de control (`alu_ctrl`)**
+**Figura 2 — Diagrama de estados de la FSM de control (`alu_ctrl`)**
 
 <p align="center">
   <img src="./assets/fsm-alu-ctrl.png" alt="Diagrama de estados de la máquina de estados alu_ctrl" width="70%" />
-</p>
-
-**Figura 11 — Esquemático RTL del subsistema `alu_top`**
-
-<p align="center">
-  <img src="./assets/rtl-alu-top.png" alt="Esquemático RTL del módulo alu_top" width="75%" />
 </p>
 
 ### 4.7. Módulo superior de integración (`top`)
 
 El módulo `top` instancia e interconecta estructuralmente `uart_brg`, `uart_rx`, `uart_tx`, `uart_alu_interface` y `alu_top`, vinculando sus entradas/salidas a los pines de la Basys 3. Como los registros `operand_a_q`, `operand_b_q` y `operation_q` dentro de `alu_ctrl` conservan su valor hasta que ingresa una nueva operación, las salidas hacia `LED[15:0]` permanecen estables para su inspección visual.
 
-**Figura 12 — Esquemático RTL del módulo superior `top`**
+**Figura 3 — Esquemático RTL del módulo superior `top`**
 
 <p align="center">
   <img src="./assets/rtl-top.png" alt="Esquemático RTL del módulo top integrado" width="80%" />
@@ -289,16 +231,10 @@ Al ejecutar `python3 TP2/alu_cli.py -p /dev/ttyUSB1` (o `--mock` sin hardware), 
 - **Ingreso manual de operaciones (`I` o teclas `1`–`8`):** abre una ventana modal para elegir la operación e ingresar operandos en formato decimal con/sin signo, hexadecimal (`0x..`) o binario (`0b..`).
 - **Representación en vivo de LEDs y telemetría:** grafica el estado de `LD15` a `LD0` tal como se ven en la placa física, junto con el desglose binario, hexadecimal y en complemento a dos de los bytes transmitidos y recibidos.
 
-**Figura 13 — Captura de pantalla de la interfaz interactiva TUI (`alu_cli.py`) en terminal**
+**Figura 4 — Interfaz interactiva TUI (`alu_cli.py`) en terminal**
 
 <p align="center">
   <img src="./assets/tui-main-interface.png" alt="Captura de pantalla de la interfaz TUI en modo interactivo" width="80%" />
-</p>
-
-**Figura 14 — Cuadro de diálogo interactivo para ingreso manual de operaciones en la TUI**
-
-<p align="center">
-  <img src="./assets/tui-manual-input.png" alt="Cuadro modal para el ingreso manual de operandos y códigos de operación" width="80%" />
 </p>
 
 ### 6.2. Modo de ejecución directa por línea de comandos (CLI)
@@ -309,13 +245,7 @@ El script también admite la ejecución puntual desde consola pasando la operaci
 python3 TP2/alu_cli.py -p /dev/ttyUSB1 --op SRA -a -16 -b 2
 ```
 
-En este modo envía los 3 bytes, mide el tiempo de respuesta de ida y vuelta, imprime una tabla comparativa entre el byte recibido desde la FPGA y el valor esperado localmente (`[PASS]` / `[FAIL]`), y dibuja el mapa de LEDs resultante.
-
-**Figura 15 — Captura de la ejecución por línea de comandos (CLI puntual con verificación)**
-
-<p align="center">
-  <img src="./assets/cli-operation-output.png" alt="Salida formateada por consola de una operación ejecutada por CLI" width="75%" />
-</p>
+En este modo envía los 3 bytes, mide el tiempo de respuesta de ida y vuelta, imprime una tabla comparativa entre el byte recibido desde la FPGA y el valor esperado localmente (`[PASS]` / `[FAIL]`), y dibuja el mapa ASCII de LEDs resultante.
 
 ### 6.3. Emulador local (`MockSerial`) y verificación cruzada
 
@@ -325,63 +255,21 @@ El script incluye una clase `MockSerial` que emula en software la máquina de es
 
 ## 7. Verificación mediante simulación
 
-El diseño cuenta con cinco bancos de prueba (*testbenches*) auto-verificables en `TP2/src/`, compilados y ejecutados con **Icarus Verilog** (`iverilog -g2001`).
+### 7.1. Bancos de prueba implementados
 
-### 7.1. Simulación del receptor UART (`tb_uart_rx`)
+El comportamiento de cada bloque y del sistema integrado fue verificado mediante cinco *testbenches* auto-verificables en SystemVerilog/Verilog:
 
-Inyecta tramas serie sobre `i_rx` verificando la correcta recepción de patrones de borde (`0x00`, `0xFF`, `0x55`, `0xA5`), la recepción de bytes consecutivos y el rechazo efectivo de pulsos de ruido espurios (*glitches* menores a medio período de bit) durante el bit de inicio.
+1. **`tb_uart_rx`:** comprueba la recepción de patrones de prueba (`0x00`, `0xFF`, `0x55`, `0xA5`), bytes consecutivos y el rechazo de pulsos espurios (*glitches*) menores a medio período de bit en la señal de *Start*.
+2. **`tb_uart_tx`:** valida la temporización del bit de *Start*, la transmisión *LSB first*, el bit de *Stop* y la generación de `o_tx_done`.
+3. **`tb_uart_loopback`:** conecta `uart_tx` y `uart_rx` en bucle cerrado mediante el mismo generador de baudios para comprobar la integridad de la transmisión serie extremo a extremo.
+4. **`tb_uart_alu_interface`:** valida la integración entre las colas FIFO, el serializador y el subsistema `alu_top`, verificando las 8 operaciones, los flags y la respuesta ante ráfagas consecutivas.
+5. **`tb_top`:** simula la integración completa a nivel de pines físicos (`CLK100MHZ`, `btnR`, `RsRx`, `RsTx`, `LED`), emulando a la PC para verificar operaciones aritméticas (incluyendo desbordamiento y resultado cero), lógicas, desplazamientos y recuperación limpia ante reset a mitad de una trama.
 
-**Figura 16 — Forma de onda / Salida de consola de la simulación de `tb_uart_rx`**
+### 7.2. Automatización de pruebas (`test.sh`)
 
-<p align="center">
-  <img src="./assets/tb-uart-rx.png" alt="Consola / Forma de onda de simulación tb_uart_rx" width="75%" />
-</p>
+El script `TP2/test.sh` compila y ejecuta todas las suites con **Icarus Verilog** (`iverilog -g2001 -Wall`) de forma automática (`./TP2/test.sh all`), deteniendo el proceso si algún caso de prueba falla.
 
-### 7.2. Simulación del transmisor UART (`tb_uart_tx`)
-
-Dispara transmisiones con `i_tx_start` y muestrea la salida `o_tx` en cada período de bit para comprobar el bit de *start*, el orden *LSB first* de los 8 bits de datos, el bit de *stop* y la generación del pulso `o_tx_done`.
-
-**Figura 17 — Forma de onda / Salida de consola de la simulación de `tb_uart_tx`**
-
-<p align="center">
-  <img src="./assets/tb-uart-tx.png" alt="Consola / Forma de onda de simulación tb_uart_tx" width="75%" />
-</p>
-
-### 7.3. Simulación de loopback UART (`tb_uart_loopback`)
-
-Conecta `uart_brg`, `uart_tx` y `uart_rx` en lazo cerrado (`o_tx` unido a `i_rx`) para validar que ambos módulos operen sincronizados a partir del mismo pulso `s_tick` y reconstruyan secuencias de bytes sin errores de trama.
-
-**Figura 18 — Forma de onda / Salida de consola de la simulación de loopback**
-
-<p align="center">
-  <img src="./assets/tb-uart-loopback.png" alt="Consola / Forma de onda de simulación tb_uart_loopback" width="75%" />
-</p>
-
-### 7.4. Simulación de la interfaz UART-ALU (`tb_uart_alu_interface`)
-
-Verifica la interacción entre `uart_alu_interface` y `alu_top`, comprobando las 8 operaciones de la ALU, las banderas `o_zero` y `o_overflow`, el *handshake* `o_tx_start`/`i_tx_done`, el encolado en ráfaga sobre las FIFOs y la recuperación tras un reset.
-
-**Figura 19 — Forma de onda / Salida de consola de la simulación de `tb_uart_alu_interface`**
-
-<p align="center">
-  <img src="./assets/tb-uart-alu-interface.png" alt="Consola / Forma de onda de simulación tb_uart_alu_interface" width="75%" />
-</p>
-
-### 7.5. Simulación de integración de nivel superior (`tb_top`)
-
-Evalúa el módulo `top` completo desde los pines `RsRx`, `RsTx`, `btnR` y `LED[15:0]`. Emula a la PC transmitiendo paquetes de 3 tramas UART completas para probar operaciones aritméticas (incluyendo casos de `Zero` en `0x20 - 0x20` y `Overflow` en `0x7F + 0x01` y `0x80 - 0x01`), lógicas, de desplazamiento, envíos *back-to-back* sin pausa y reset a mitad de una transacción.
-
-**Figura 20 — Forma de onda / Salida de consola de la simulación de integración `tb_top`**
-
-<p align="center">
-  <img src="./assets/tb-top.png" alt="Consola / Forma de onda de simulación tb_top" width="75%" />
-</p>
-
-### 7.6. Automatización de pruebas (`test.sh`)
-
-El script `TP2/test.sh` permite ejecutar de forma individual o conjunta (`./TP2/test.sh all`) todas las suites de simulación con las banderas `-g2001 -Wall`, deteniendo la ejecución si algún caso arroja error.
-
-**Figura 21 — Ejecución del script automatizado de pruebas `test.sh`**
+**Figura 5 — Ejecución completa del conjunto de simulaciones mediante `test.sh`**
 
 <p align="center">
   <img src="./assets/test-sh-output.png" alt="Ejecución completa del conjunto de testbenches mediante test.sh" width="75%" />
@@ -417,16 +305,10 @@ Dado que la trama de retorno por UART consta de 1 byte (los 8 bits del resultado
 
 Una vez superadas las simulaciones, el diseño fue sintetizado e implementado en **Xilinx Vivado** aplicando las restricciones de `Basys3_Master.xdc` y programado sobre la placa **Digilent Basys 3**. Conectando la placa por USB y ejecutando `alu_cli.py`, se verificó en hardware tanto la secuencia automática de pruebas como el envío manual byte a byte y la correspondencia exacta de los LEDs (`LD15`–`LD0`) con el panel de la TUI.
 
-**Figura 22 — Conexión física de la placa Digilent Basys 3 al puesto de trabajo**
+**Figura 6 — Verificación experimental en la placa Basys 3 con visualización en LEDs**
 
 <p align="center">
-  <img src="./assets/foto-basys3-setup.png" alt="Fotografía del montaje experimental de la Basys 3 conectada por USB" width="75%" />
-</p>
-
-**Figura 23 — Verificación de operación en hardware con visualización de LEDs**
-
-<p align="center">
-  <img src="./assets/foto-basys3-leds.png" alt="Fotografía en primer plano de los LEDs de la Basys 3 indicando resultado y flags" width="75%" />
+  <img src="./assets/foto-basys3-leds.png" alt="Fotografía de la Basys 3 en funcionamiento indicando resultado y flags en los LEDs" width="75%" />
 </p>
 
 ---
